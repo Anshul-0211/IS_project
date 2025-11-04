@@ -2,3 +2,7 @@ flask
 scikit-learn
 joblib
 pandas
+cryptography
+flask-cors
+bcrypt
+pyjwt
