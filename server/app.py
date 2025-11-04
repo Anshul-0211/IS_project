@@ -8,6 +8,7 @@ import tkinter as tk  # Add tkinter for popup messages
 from tkinter import messagebox
 from flask_cors import CORS
 import os
+import threading
 
 os.environ["FLASK_ENV"] = "development"
 
@@ -31,20 +32,39 @@ def is_in_whitelist(url):
 
 def show_popup(stats):
     """Display detailed statistics in a popup message"""
-    root = tk.Tk()
-    root.withdraw()  # Hide the main tkinter window
+    try:
+        # Only attempt GUI popups on the main thread; otherwise skip to avoid 500s
+        if threading.current_thread().name != 'MainThread':
+            print(
+                "[Popup Skipped] Non-main thread. Stats:",
+                {
+                    'url': stats.get('url'),
+                    'source': stats.get('source'),
+                    'probability': stats.get('probability'),
+                    'virustotal_reports': stats.get('virustotal_reports'),
+                    'is_whitelisted': stats.get('is_whitelisted'),
+                    'is_phishing': stats.get('is_phishing')
+                }
+            )
+            return
 
-    # Create the message with detailed statistics
-    message = f"URL: {stats['url']}\n"
-    message += f"Source: {stats['source']}\n"
-    message += f"Phishing Probability: {stats['probability']:.2f}\n"
-    message += f"Malicious Reports (VirusTotal): {stats['virustotal_reports']}\n"
-    message += f"Is Whitelisted: {stats['is_whitelisted']}\n"
-    message += f"Is Phishing: {stats['is_phishing']}\n"
+        root = tk.Tk()
+        root.withdraw()  # Hide the main tkinter window
 
-    # Show the popup with the message
-    messagebox.showinfo("Phishing Detection Alert", message)
-    root.destroy()
+        # Create the message with detailed statistics
+        message = f"URL: {stats['url']}\n"
+        message += f"Source: {stats['source']}\n"
+        message += f"Phishing Probability: {stats['probability']:.2f}\n"
+        message += f"Malicious Reports (VirusTotal): {stats['virustotal_reports']}\n"
+        message += f"Is Whitelisted: {stats['is_whitelisted']}\n"
+        message += f"Is Phishing: {stats['is_phishing']}\n"
+
+        # Show the popup with the message
+        messagebox.showinfo("Phishing Detection Alert", message)
+        root.destroy()
+    except Exception as e:
+        # Never let UI issues break the API response path
+        print(f"[Popup Error] {e}")
 
 # Check VirusTotal for known threats
 def check_virustotal(url):
@@ -70,7 +90,13 @@ def classify_url_with_threshold(url, threshold=0.7):
     is_whitelisted = is_in_whitelist(url)
     if is_whitelisted:
         print(f"[Whitelist] URL: {url} classified as LEGITIMATE")
-        return {'is_phishing': False, 'source': 'Whitelist', 'url': url, 'is_whitelisted': True}
+        # Ensure native Python types for JSON serialization
+        return {
+            'is_phishing': False,
+            'source': 'Whitelist',
+            'url': url,
+            'is_whitelisted': bool(True)
+        }
 
     # Step 1: Run the model first
     domain = urlparse(url).netloc  # Extract the domain for model input
@@ -80,52 +106,79 @@ def classify_url_with_threshold(url, threshold=0.7):
 
     # Get probability for the 'phishing' class
     prob = pipeline.predict_proba(input_data)[0][1]
-    is_phishing = prob >= threshold
+    is_phishing = bool(prob >= threshold)
     source = "ML Model (Threshold Applied)"
 
     print(f"[Model] URL: {url}, Probability: {prob:.2f}, Classified as: {'PHISHING' if is_phishing else 'LEGITIMATE'}")
 
     # Step 2: Check VirusTotal after running the model
-    malicious_count = check_virustotal(url)
+    malicious_count = int(check_virustotal(url))
 
     # Now, we need to display the popup with both model result and VirusTotal result
     show_popup({
         'url': url,
         'source': source,
-        'probability': prob,
+        'probability': float(prob),
         'virustotal_reports': malicious_count,
-        'is_whitelisted': is_whitelisted,
-        'is_phishing': is_phishing
+        'is_whitelisted': bool(is_whitelisted),
+        'is_phishing': bool(is_phishing)
     })
 
     # If VirusTotal flags as malicious, return that info first
     if malicious_count > 0:
         print(f"[Result] URL: {url} classified as PHISHING (Source: VirusTotal)")
-
-        return {'is_phishing': True, 'source': 'VirusTotal', 'url': url, 'virustotal_reports': malicious_count, 'is_whitelisted': is_whitelisted, 'probability': prob}
+        return {
+            'is_phishing': True,
+            'source': 'VirusTotal',
+            'url': url,
+            'virustotal_reports': malicious_count,
+            'is_whitelisted': bool(is_whitelisted),
+            'probability': float(prob)
+        }
 
     # Otherwise, return the model result
-    return {'is_phishing': is_phishing, 'source': source, 'url': url, 'probability': prob, 'virustotal_reports': malicious_count, 'is_whitelisted': is_whitelisted}
+    return {
+        'is_phishing': bool(is_phishing),
+        'source': source,
+        'url': url,
+        'probability': float(prob),
+        'virustotal_reports': malicious_count,
+        'is_whitelisted': bool(is_whitelisted)
+    }
 
 @app.route('/classify_url', methods=['POST'])
 def classify_url():
-    data = request.get_json()
-    url = data.get('url')
-    
-    if url:
-        print(f"[Check Start] URL: {url}", flush=True)
-        
-        result = classify_url_with_threshold(url)
-        
-        if result['is_phishing']:
-            # Render the warning page if phishing is detected
-            print("Showing warning page")
-            return render_template('warning.html'), 403
-        
-        return jsonify(result)
-    else:
-        print("[Error] No URL provided in request.")
-        return jsonify({'error': 'No URL provided'}), 400
+    # Be forgiving with malformed headers or JSON encoding
+    # 1) Try regular JSON parse (silent=True avoids exceptions)
+    data = request.get_json(silent=True)
+
+    # 2) Fallback: try to parse raw body as JSON
+    if data is None:
+        try:
+            import json as _json
+            raw = request.data.decode('utf-8') if request.data else ''
+            data = _json.loads(raw) if raw else {}
+        except Exception:
+            data = {}
+
+    url = (data or {}).get('url')
+
+    if not url:
+        print("[Error] No URL provided in request or invalid JSON body.")
+        return jsonify({
+            'error': 'Invalid request. Provide JSON like {"url": "https://example.com"} with Content-Type: application/json.'
+        }), 400
+
+    print(f"[Check Start] URL: {url}", flush=True)
+
+    result = classify_url_with_threshold(url)
+
+    if result['is_phishing']:
+        # Render the warning page if phishing is detected
+        print("Showing warning page")
+        return render_template('warning.html'), 403
+
+    return jsonify(result)
     
 # Hardcoded ransomware detection
 @app.route('/check_ransomware_file', methods=['POST'])
