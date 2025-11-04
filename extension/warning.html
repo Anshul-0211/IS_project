@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚠️ Phishing Warning</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #ff4757, #ff6348);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .warning-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .warning-icon {
+            font-size: 100px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        h1 {
+            color: #ff4757;
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .danger-text {
+            color: #e84118;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .url-box {
+            background: #f1f2f6;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            color: #2f3542;
+        }
+
+        .info-text {
+            color: #57606f;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .warning-reasons {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+            border-radius: 5px;
+        }
+
+        .warning-reasons h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .warning-reasons ul {
+            list-style-position: inside;
+            color: #856404;
+        }
+
+        .warning-reasons li {
+            margin: 8px 0;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-safe {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .btn-safe:hover {
+            background: #27ae60;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+        }
+
+        .footer-text {
+            margin-top: 20px;
+            color: #95a5a6;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="warning-container">
+        <div class="warning-icon">⚠️</div>
+        <h1>PHISHING DETECTED!</h1>
+        <p class="danger-text">This website has been flagged as potentially malicious</p>
+        
+        <div class="url-box" id="blockedUrl">
+            Loading URL...
+        </div>
+
+        <div class="warning-reasons">
+            <h3>🛡️ Why was this blocked?</h3>
+            <ul>
+                <li>Detected by our AI-powered phishing detection system</li>
+                <li>URL patterns match known phishing techniques</li>
+                <li>May attempt to steal your personal information</li>
+                <li>Could contain malware or ransomware</li>
+            </ul>
+        </div>
+
+        <p class="info-text">
+            <strong>We strongly recommend NOT visiting this site.</strong><br>
+            Phishing sites often mimic legitimate websites to steal passwords, credit card information, and personal data.
+        </p>
+
+        <div class="button-container">
+            <button class="btn btn-safe" id="goBackBtn">
+                🏠 Go Back to Safety
+            </button>
+            <button class="btn btn-danger" id="continueBtn">
+                ⚠️ Continue Anyway (Not Recommended)
+            </button>
+        </div>
+
+        <p class="footer-text">
+            Protected by Phishing Detector Extension
+        </p>
+    </div>
+
+    <script>
+        console.log('[Warning Page] Script loaded');
+        
+        // Get the blocked URL from query parameters or storage
+        let blockedUrl = '';
+        
+        // Function to display the URL
+        function displayUrl(url) {
+            console.log('[Warning Page] Displaying URL:', url);
+            blockedUrl = url;
+            const urlElement = document.getElementById('blockedUrl');
+            if (urlElement) {
+                urlElement.textContent = url;
+                console.log('[Warning Page] URL displayed successfully');
+            } else {
+                console.error('[Warning Page] URL element not found');
+            }
+        }
+        
+        // Try to get URL from query parameters first
+        console.log('[Warning Page] Current URL:', window.location.href);
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlFromParams = urlParams.get('url');
+        console.log('[Warning Page] URL from params:', urlFromParams);
+        
+        if (urlFromParams && urlFromParams !== 'Unknown URL') {
+            displayUrl(decodeURIComponent(urlFromParams));
+        } else {
+            console.log('[Warning Page] No URL in params, checking storage...');
+            // Fallback to chrome storage
+            try {
+                chrome.storage.local.get(['blockedUrl'], (result) => {
+                    console.log('[Warning Page] Storage result:', result);
+                    if (chrome.runtime.lastError) {
+                        console.error('[Warning Page] Storage error:', chrome.runtime.lastError);
+                    }
+                    if (result.blockedUrl) {
+                        displayUrl(result.blockedUrl);
+                    } else {
+                        console.warn('[Warning Page] No URL in storage');
+                        document.getElementById('blockedUrl').textContent = 'Unknown URL';
+                    }
+                });
+            } catch (error) {
+                console.error('[Warning Page] Error accessing storage:', error);
+            }
+        }
+
+        // Go back button - uses Chrome tabs API to go back
+        document.getElementById('goBackBtn').addEventListener('click', () => {
+            console.log('[Warning Page] 🏠 Go Back button clicked');
+            
+            try {
+                // Option 1: Try Chrome tabs API first
+                console.log('[Warning Page] Attempting to use Chrome tabs API...');
+                chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+                    if (chrome.runtime.lastError) {
+                        console.error('[Warning Page] Chrome tabs query error:', chrome.runtime.lastError);
+                        // Fallback to window.history
+                        console.log('[Warning Page] Falling back to window.history.back()');
+                        window.history.back();
+                        return;
+                    }
+                    
+                    console.log('[Warning Page] Active tabs:', tabs);
+                    
+                    if (tabs && tabs.length > 0) {
+                        // Use chrome.tabs.goBack if available, or navigate to safe page
+                        console.log('[Warning Page] Navigating to Google...');
+                        chrome.tabs.update(tabs[0].id, { url: 'https://www.google.com' }, () => {
+                            if (chrome.runtime.lastError) {
+                                console.error('[Warning Page] Tab update error:', chrome.runtime.lastError);
+                            } else {
+                                console.log('[Warning Page] Successfully navigated to Google');
+                            }
+                        });
+                    } else {
+                        console.log('[Warning Page] No active tabs, using window.location');
+                        window.location.href = 'https://www.google.com';
+                    }
+                });
+            } catch (error) {
+                console.error('[Warning Page] Error in Go Back handler:', error);
+                // Final fallback
+                console.log('[Warning Page] Using final fallback: window.history.back()');
+                window.history.back();
+            }
+        });
+
+        // Continue anyway button - navigates to the blocked URL
+        document.getElementById('continueBtn').addEventListener('click', () => {
+            console.log('[Warning Page] ⚠️ Continue Anyway button clicked');
+            console.log('[Warning Page] Current blockedUrl:', blockedUrl);
+            
+            if (!blockedUrl || blockedUrl === 'Unknown URL' || blockedUrl === 'Loading URL...') {
+                console.error('[Warning Page] Invalid URL, cannot continue');
+                alert('❌ Cannot continue - URL is unknown or invalid.');
+                return;
+            }
+            
+            // Show strong warning
+            console.log('[Warning Page] Showing confirmation dialog...');
+            const userConfirmed = confirm(
+                '⚠️ FINAL WARNING ⚠️\n\n' +
+                'This site is flagged as DANGEROUS and may:\n' +
+                '• Steal your passwords and personal information\n' +
+                '• Install malware on your device\n' +
+                '• Compromise your financial data\n\n' +
+                'Are you ABSOLUTELY SURE you want to continue?'
+            );
+            
+            console.log('[Warning Page] User confirmation:', userConfirmed);
+            
+            if (userConfirmed) {
+                console.log('[Warning Page] ✅ User confirmed, setting bypass and navigating to:', blockedUrl);
+                
+                try {
+                    // Add the URL to a temporary whitelist so it won't be blocked again
+                    chrome.storage.local.set({ 
+                        bypassWarning: blockedUrl,
+                        bypassTimestamp: Date.now()
+                    }, () => {
+                        if (chrome.runtime.lastError) {
+                            console.error('[Warning Page] Error setting bypass:', chrome.runtime.lastError);
+                        } else {
+                            console.log('[Warning Page] Bypass set successfully');
+                        }
+                        
+                        // Navigate to the blocked URL
+                        console.log('[Warning Page] Attempting to navigate to blocked URL...');
+                        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+                            if (chrome.runtime.lastError) {
+                                console.error('[Warning Page] Tabs query error:', chrome.runtime.lastError);
+                                console.log('[Warning Page] Fallback: using window.location');
+                                window.location.href = blockedUrl;
+                                return;
+                            }
+                            
+                            console.log('[Warning Page] Active tabs for navigation:', tabs);
+                            
+                            if (tabs && tabs.length > 0) {
+                                console.log('[Warning Page] Updating tab to:', blockedUrl);
+                                chrome.tabs.update(tabs[0].id, { url: blockedUrl }, () => {
+                                    if (chrome.runtime.lastError) {
+                                        console.error('[Warning Page] Tab update error:', chrome.runtime.lastError);
+                                        console.log('[Warning Page] Fallback: using window.location');
+                                        window.location.href = blockedUrl;
+                                    } else {
+                                        console.log('[Warning Page] ✅ Successfully navigated to blocked URL');
+                                    }
+                                });
+                            } else {
+                                console.log('[Warning Page] No tabs found, using window.location');
+                                window.location.href = blockedUrl;
+                            }
+                        });
+                    });
+                } catch (error) {
+                    console.error('[Warning Page] Error in Continue Anyway handler:', error);
+                    console.log('[Warning Page] Direct navigation fallback');
+                    window.location.href = blockedUrl;
+                }
+            } else {
+                console.log('[Warning Page] ❌ User cancelled navigation');
+            }
+        });
+        
+        console.log('[Warning Page] Event listeners attached successfully');
+        console.log('[Warning Page] Ready for user interaction');
+    </script>
+</body>
+</html>
